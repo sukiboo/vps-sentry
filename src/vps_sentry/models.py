@@ -11,10 +11,10 @@ Kind = Literal["fire", "recover"]
 # "low" means value < threshold is a breach.
 METRIC_DIRECTION: dict[str, str] = {
     "load_per_core": "high",
-    "memory_avail_pct": "low",
-    "swap_used_pct": "high",
-    "disk_used_pct": "high",
-    "iowait_pct": "high",
+    "memory_used": "high",
+    "swap_used": "high",
+    "disk_used": "high",
+    "iowait": "high",
 }
 
 
@@ -34,11 +34,11 @@ class Snapshot:
     load_5: float
     load_15: float
     cpu_count: int
-    cpu_pct: float
-    mem_avail_pct: float
-    swap_used_pct: float
-    disk_used_pct: dict[str, float]
-    iowait_pct: float
+    cpu_used: float
+    mem_used: float
+    swap_used: float
+    disk_used: dict[str, float]
+    iowait: float
     proc_count: int
 
     @property
@@ -53,7 +53,7 @@ class Alert:
     kind: Kind
     value: float
     threshold: float
-    mount: str | None = None  # set for disk_used_pct alerts
+    mount: str | None = None  # set for disk_used alerts
     snapshot: Snapshot | None = None
 
     @property

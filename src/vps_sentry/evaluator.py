@@ -6,12 +6,12 @@ from typing import Optional
 from .models import METRIC_DIRECTION, Alert, Config, Snapshot, Tier
 from .state import AlertState
 
-# Metrics other than disk_used_pct use a (metric, None) key; disk is per-mount.
+# Metrics other than disk_used use a (metric, None) key; disk is per-mount.
 NON_DISK_METRICS = [
     "load_per_core",
-    "memory_avail_pct",
-    "swap_used_pct",
-    "iowait_pct",
+    "memory_used",
+    "swap_used",
+    "iowait",
 ]
 
 
@@ -27,8 +27,8 @@ def evaluate(
     metric_keys: list[tuple[str, str | None]] = [
         (m, None) for m in NON_DISK_METRICS if m in cfg.thresholds
     ]
-    if "disk_used_pct" in cfg.thresholds:
-        metric_keys.extend(("disk_used_pct", mount) for mount in snapshot.disk_used_pct)
+    if "disk_used" in cfg.thresholds:
+        metric_keys.extend(("disk_used", mount) for mount in snapshot.disk_used)
 
     in_warmup = len(state.history) < cfg.sustained_checks
 
@@ -96,14 +96,14 @@ def evaluate(
 def _value(snapshot: Snapshot, metric: str, mount: str | None) -> float | None:
     if metric == "load_per_core":
         return snapshot.load_per_core
-    if metric == "memory_avail_pct":
-        return snapshot.mem_avail_pct
-    if metric == "swap_used_pct":
-        return snapshot.swap_used_pct
-    if metric == "iowait_pct":
-        return snapshot.iowait_pct
-    if metric == "disk_used_pct":
-        return snapshot.disk_used_pct.get(mount) if mount else None
+    if metric == "memory_used":
+        return snapshot.mem_used
+    if metric == "swap_used":
+        return snapshot.swap_used
+    if metric == "iowait":
+        return snapshot.iowait
+    if metric == "disk_used":
+        return snapshot.disk_used.get(mount) if mount else None
     raise ValueError(f"unknown metric {metric!r}")
 
 

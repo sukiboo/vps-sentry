@@ -14,10 +14,10 @@ TELEGRAM_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
 METRIC_LABELS: dict[str, str] = {
     "load_per_core": "load per core",
-    "memory_avail_pct": "memory available",
-    "swap_used_pct": "swap used",
-    "disk_used_pct": "disk used",
-    "iowait_pct": "iowait",
+    "memory_used": "memory used",
+    "swap_used": "swap used",
+    "disk_used": "disk used",
+    "iowait": "iowait",
 }
 
 TIER_PREFIX = {"warn": "⚠️ WARN", "critical": "🚨 CRITICAL"}

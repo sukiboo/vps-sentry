@@ -9,7 +9,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from . import notifier
+from . import notifier, ticklog
 from .collector import collect, top_processes
 from .config import load_config
 from .evaluator import evaluate
@@ -55,6 +55,7 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
     cfg = load_config(cfg_path)
     state = AlertState()
     state.configure_history(cfg.sustained_checks)
+    tick_log = ticklog.setup(Path.cwd() / "logs")
 
     stop = {"now": False}
 
@@ -108,6 +109,8 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
         except Exception:
             log.exception("evaluate() failed; skipping tick")
             alerts = []
+
+        ticklog.log_tick(tick_log, snap, len(alerts))
 
         if alerts:
             by_cpu, by_mem = top_processes(5)

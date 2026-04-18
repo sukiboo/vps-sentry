@@ -34,6 +34,7 @@ fi
 "$DEST/.venv/bin/pip" install --quiet --upgrade pip
 "$DEST/.venv/bin/pip" install --quiet -r "$DEST/requirements.txt"
 
+mkdir -p "$DEST/logs"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$DEST"
 chmod 600 "$DEST/.env"
 

@@ -29,11 +29,11 @@ def collect(mounts: list[str]) -> Snapshot:
         load_5=load_5,
         load_15=load_15,
         cpu_count=psutil.cpu_count(logical=True) or 1,
-        cpu_pct=psutil.cpu_percent(interval=None),
-        mem_avail_pct=100.0 * vm.available / vm.total,
-        swap_used_pct=sw.percent,
-        disk_used_pct=disk_used,
-        iowait_pct=getattr(cpu_times, "iowait", 0.0),
+        cpu_used=psutil.cpu_percent(interval=None),
+        mem_used=vm.percent,
+        swap_used=sw.percent,
+        disk_used=disk_used,
+        iowait=getattr(cpu_times, "iowait", 0.0),
         proc_count=len(psutil.pids()),
     )
 
