@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import logging
 import time
 
@@ -19,7 +20,7 @@ METRIC_LABELS: dict[str, str] = {
     "iowait_pct": "iowait",
 }
 
-TIER_PREFIX = {"warn": "⚠️ *WARN*", "critical": "🚨 *CRITICAL*"}
+TIER_PREFIX = {"warn": "⚠️ WARN", "critical": "🚨 CRITICAL"}
 
 
 def send(
@@ -47,8 +48,8 @@ def _post(cfg: Config, text: str) -> None:
     url = TELEGRAM_URL.format(token=cfg.telegram_token)
     payload = {
         "chat_id": cfg.telegram_chat_id,
-        "text": text,
-        "parse_mode": "Markdown",
+        "text": f"<code>{html.escape(text)}</code>",
+        "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
     backoff = 1.0
@@ -79,7 +80,7 @@ def format_alert(
     ts = alert.snapshot.ts.strftime("%Y-%m-%d %H:%M UTC") if alert.snapshot else ""
 
     if alert.kind == "recover":
-        header = f"✅ *RECOVERED* — {label} {_fmt_value(alert.metric, alert.value)}"
+        header = f"✅ RECOVERED — {label} {_fmt_value(alert.metric, alert.value)}"
         meta = f"Host: {cfg.host}  |  {ts}"
         return f"{header}\n{meta}"
 
