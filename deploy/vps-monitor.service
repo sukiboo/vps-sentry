@@ -1,0 +1,19 @@
+[Unit]
+Description=VPS Sentry — resource monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/vps-monitor
+EnvironmentFile=/opt/vps-monitor/.env
+Environment=PYTHONPATH=/opt/vps-monitor/src
+ExecStart=/opt/vps-monitor/.venv/bin/python -m vps_sentry --config /opt/vps-monitor/config.yml
+Restart=on-failure
+RestartSec=10s
+User=monitor
+Nice=10
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target

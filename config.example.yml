@@ -1,0 +1,15 @@
+interval_seconds: 60
+sustained_checks: 3
+cooldown_minutes: 30
+
+# Optional override; defaults to socket.gethostname()
+# host: my-vps
+
+thresholds:
+  load_per_core:    { warn: 1.0, critical: 2.0 }
+  memory_avail_pct: { warn: 15,  critical: 5 }    # alert when BELOW
+  swap_used_pct:    { warn: 10,  critical: 50 }
+  disk_used_pct:    { warn: 80,  critical: 90 }
+  iowait_pct:       { warn: 20,  critical: 40 }
+
+mounts: ["/"]
