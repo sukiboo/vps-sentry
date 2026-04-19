@@ -1,3 +1,10 @@
+# When deployed via deploy/install.sh, vps-sentry lives at /opt/vps-sentry:
+#   config      /opt/vps-sentry/config.yml
+#   secrets     /opt/vps-sentry/.env
+#   tick log    /opt/vps-sentry/logs/vps-sentry.log    (daily rotation, 60d)
+#   event log   journalctl -u vps-sentry -f
+#   service     systemctl {status,restart} vps-sentry
+
 # How often to sample system metrics (seconds).
 interval_seconds: 60
 # Number of consecutive breaching snapshots required before an alert fires.

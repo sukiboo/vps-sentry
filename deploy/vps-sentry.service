@@ -5,13 +5,13 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/vps-monitor
-EnvironmentFile=/opt/vps-monitor/.env
-Environment=PYTHONPATH=/opt/vps-monitor/src
-ExecStart=/opt/vps-monitor/.venv/bin/python -m vps_sentry --config /opt/vps-monitor/config.yml
+WorkingDirectory=/opt/vps-sentry
+EnvironmentFile=/opt/vps-sentry/.env
+Environment=PYTHONPATH=/opt/vps-sentry/src
+ExecStart=/opt/vps-sentry/.venv/bin/python -m vps_sentry --config /opt/vps-sentry/config.yml
 Restart=on-failure
 RestartSec=10s
-User=monitor
+User=vps-sentry
 Nice=10
 MemoryMax=64M
 
