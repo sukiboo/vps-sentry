@@ -41,9 +41,10 @@ def run_once(cfg_path: str) -> int:
     snap = collect(cfg.mounts)
     print(_snapshot_to_json(snap))
     by_cpu, by_mem = top_processes(5)
+    cpu_count = max(1, snap.cpu_count)
     print("\nTop by CPU:")
     for p in by_cpu:
-        print(f"  {p.cpu_pct:5.1f}%  {p.cmdline or p.name}")
+        print(f"  {p.cpu_pct / cpu_count:5.1f}%  {p.cmdline or p.name}")
     print("\nTop by RAM:")
     for p in by_mem:
         mb = p.rss_bytes / (1024**2)

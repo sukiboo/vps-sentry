@@ -20,7 +20,7 @@ METRIC_LABELS: dict[str, str] = {
     "iowait": "iowait",
 }
 
-TIER_PREFIX = {"warn": "⚠️ WARN", "critical": "🚨 CRITICAL"}
+TIER_PREFIX = {"warn": "⚠️", "critical": "🚨", "recover": "✅"}
 
 
 def send(
@@ -78,23 +78,22 @@ def format_alert(
         label = f"{label} ({alert.mount})"
 
     ts = alert.snapshot.ts.strftime("%Y-%m-%d %H:%M UTC") if alert.snapshot else ""
-
-    if alert.kind == "recover":
-        header = f"✅ RECOVERED — {label} {_fmt_value(alert.metric, alert.value)}"
-        meta = f"Host: {cfg.host}  |  {ts}"
-        return f"{header}\n{meta}"
-
     prefix = TIER_PREFIX[alert.tier]
-    header = f"{prefix} — {label} {_fmt_value(alert.metric, alert.value)}"
-    meta = f"Host: {cfg.host}  |  {ts}"
-    body = [header, meta, ""]
+    value = _fmt_value(alert.metric, alert.value)
+    header = f"{prefix}  {ts} -- {label} {value} on `{cfg.host}`"
+
+    if alert.tier == "recover":
+        return header
+
+    body = [header, ""]
     if top_mem:
         body.append("Top by RAM:")
         body.extend(f"  {_fmt_rss(p.rss_bytes)}  {_short_cmd(p)}" for p in top_mem)
         body.append("")
     if top_cpu:
+        cpu_count = max(1, alert.snapshot.cpu_count) if alert.snapshot else 1
         body.append("Top by CPU:")
-        body.extend(f"  {p.cpu_pct:4.0f}%  {_short_cmd(p)}" for p in top_cpu)
+        body.extend(f"  {p.cpu_pct / cpu_count:4.0f}%  {_short_cmd(p)}" for p in top_cpu)
     return "\n".join(body).rstrip()
 
 
@@ -112,6 +111,6 @@ def _fmt_rss(rss: int) -> str:
     return f"{mb:4.0f} MB"
 
 
-def _short_cmd(p: ProcInfo, limit: int = 60) -> str:
+def _short_cmd(p: ProcInfo, limit: int = 40) -> str:
     cmd = p.cmdline or p.name
     return cmd if len(cmd) <= limit else cmd[: limit - 1] + "…"

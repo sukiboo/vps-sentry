@@ -49,8 +49,7 @@ def evaluate(
                 alerts.append(
                     Alert(
                         metric=metric,
-                        tier=active_tier,
-                        kind="recover",
+                        tier="recover",
                         value=value if value is not None else 0.0,
                         threshold=prev_threshold,
                         mount=mount,
@@ -80,7 +79,6 @@ def evaluate(
             Alert(
                 metric=metric,
                 tier=current_tier,
-                kind="fire",
                 value=value,
                 threshold=threshold,
                 mount=mount,

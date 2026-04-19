@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-Tier = Literal["warn", "critical"]
-Kind = Literal["fire", "recover"]
+Tier = Literal["warn", "critical", "recover"]
 
 # Direction per metric: "high" means value > threshold is a breach;
 # "low" means value < threshold is a breach.
@@ -50,7 +49,6 @@ class Snapshot:
 class Alert:
     metric: str
     tier: Tier
-    kind: Kind
     value: float
     threshold: float
     mount: str | None = None  # set for disk_used alerts
