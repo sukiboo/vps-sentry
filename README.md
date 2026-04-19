@@ -9,7 +9,7 @@ Every `interval_seconds` it samples via `psutil` and evaluates thresholds for:
 - **load_per_core** — 1-min load average / CPU count
 - **memory_used**, **swap_used**, **disk_used** (per mount), **iowait** — percentages
 
-Alerts are suppressed until `sustained_checks` consecutive samples are over threshold, and each (metric, tier) has a `cooldown_minutes` to prevent spam. Warn can escalate to critical independently. One-shot 🟢 recovery message when a metric drops back under.
+Alerts are suppressed until `sustained_checks` consecutive samples are over threshold, and each (metric, tier) has a `cooldown_minutes` to prevent spam. Warn can escalate to critical independently. One-shot ✅ recovery message when a metric drops back under.
 
 ## Quick start
 
@@ -48,4 +48,4 @@ sudo ./deploy/install.sh
 
 Idempotent installer: creates a `monitor` system user, rsyncs to `/opt/vps-monitor`, builds a venv, installs the systemd unit, enables it. Live-tail with `journalctl -u vps-monitor -f`.
 
-See [`vps-monitor-design.md`](vps-monitor-design.md) for design rationale and [`.claude/CLAUDE.md`](.claude/CLAUDE.md) for implementation notes.
+See [`.claude/CLAUDE.md`](.claude/CLAUDE.md) for implementation notes.

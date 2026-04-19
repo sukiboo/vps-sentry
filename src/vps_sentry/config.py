@@ -42,6 +42,7 @@ def load_config(config_path: str | Path, env_path: str | Path | None = None) -> 
         interval_seconds=int(raw.get("interval_seconds", 60)),
         sustained_checks=int(raw.get("sustained_checks", 3)),
         cooldown_minutes=int(raw.get("cooldown_minutes", 30)),
+        show_top_n_proc=int(raw.get("show_top_n_proc", 5)),
         thresholds=thresholds,
         mounts=mounts,
         telegram_token=token,

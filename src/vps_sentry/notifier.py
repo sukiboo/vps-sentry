@@ -12,13 +12,12 @@ log = logging.getLogger(__name__)
 
 TELEGRAM_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
-METRIC_LABELS: dict[str, str] = {
-    "load_per_core": "load per core",
-    "memory_used": "memory used",
-    "swap_used": "swap used",
-    "disk_used": "disk used",
-    "iowait": "iowait",
-}
+RETRY_ATTEMPTS = 3
+REQUEST_TIMEOUT_SECONDS = 10
+INITIAL_BACKOFF_SECONDS = 1.0
+BACKOFF_MULTIPLIER = 2.0
+
+CMDLINE_LIMIT = 40
 
 TIER_PREFIX = {"warn": "⚠️", "critical": "🚨", "recover": "✅"}
 
@@ -52,19 +51,19 @@ def _post(cfg: Config, text: str) -> None:
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
-    backoff = 1.0
-    for attempt in range(1, 4):
+    backoff = INITIAL_BACKOFF_SECONDS
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
         try:
-            r = requests.post(url, json=payload, timeout=10)
+            r = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT_SECONDS)
             if 200 <= r.status_code < 300:
                 return
             log.warning("Telegram %s (attempt %d): %s", r.status_code, attempt, r.text[:200])
         except requests.RequestException as exc:
             log.warning("Telegram request failed (attempt %d): %s", attempt, exc)
-        if attempt < 3:
+        if attempt < RETRY_ATTEMPTS:
             time.sleep(backoff)
-            backoff *= 2
-    log.error("Telegram send gave up after 3 attempts")
+            backoff *= BACKOFF_MULTIPLIER
+    log.error("Telegram send gave up after %d attempts", RETRY_ATTEMPTS)
 
 
 def format_alert(
@@ -73,7 +72,7 @@ def format_alert(
     top_cpu: list[ProcInfo],
     top_mem: list[ProcInfo],
 ) -> str:
-    label = METRIC_LABELS.get(alert.metric, alert.metric)
+    label = alert.metric.replace("_", " ")
     if alert.mount:
         label = f"{label} ({alert.mount})"
 
@@ -111,6 +110,6 @@ def _fmt_rss(rss: int) -> str:
     return f"{mb:4.0f} MB"
 
 
-def _short_cmd(p: ProcInfo, limit: int = 40) -> str:
+def _short_cmd(p: ProcInfo, limit: int = CMDLINE_LIMIT) -> str:
     cmd = p.cmdline or p.name
     return cmd if len(cmd) <= limit else cmd[: limit - 1] + "…"

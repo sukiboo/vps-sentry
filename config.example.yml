@@ -1,13 +1,18 @@
+# How often to sample system metrics (seconds).
 interval_seconds: 60
+# Number of consecutive breaching snapshots required before an alert fires.
 sustained_checks: 3
+# How long to suppress the same (metric, tier) alert after firing (minutes).
 cooldown_minutes: 30
+# How many top processes (by CPU and by RAM) to include in each alert.
+show_top_n_proc: 5
 
 # Optional override; defaults to socket.gethostname()
 # host: my-vps
 
 thresholds:
   load_per_core: { warn: 1.0, critical: 2.0 }
-  memory_used:   { warn: 85,  critical: 95 }
+  memory_used:   { warn: 80,  critical: 90 }
   swap_used:     { warn: 10,  critical: 50 }
   disk_used:     { warn: 80,  critical: 90 }
   iowait:        { warn: 20,  critical: 40 }

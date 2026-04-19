@@ -19,6 +19,9 @@ log = logging.getLogger("vps_sentry")
 
 DEFAULT_CONFIG = Path.cwd() / "config.yml"
 
+CLOCK_JUMP_FACTOR = 5
+SIGTERM_CHECK_INTERVAL = 1.0
+
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="vps_sentry", description="Lightweight VPS resource monitor")
@@ -40,7 +43,7 @@ def run_once(cfg_path: str) -> int:
     cfg = load_config(cfg_path)
     snap = collect(cfg.mounts)
     print(_snapshot_to_json(snap))
-    by_cpu, by_mem = top_processes(5)
+    by_cpu, by_mem = top_processes(cfg.show_top_n_proc)
     cpu_count = max(1, snap.cpu_count)
     print("\nTop by CPU:")
     for p in by_cpu:
@@ -100,7 +103,7 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
 
         # Clock-jump guard: if we slept much longer than expected (suspend/resume, NTP jump),
         # history is stale — drop it and start over. Leave current snapshot in place.
-        if wall_gap > cfg.interval_seconds * 5 and len(state.history) > 1:
+        if wall_gap > cfg.interval_seconds * CLOCK_JUMP_FACTOR and len(state.history) > 1:
             log.warning("wall-clock gap %.1fs >> interval; resetting history", wall_gap)
             state.history.clear()
             state.history.append(snap)
@@ -114,7 +117,7 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
         ticklog.log_tick(tick_log, snap, len(alerts))
 
         if alerts:
-            by_cpu, by_mem = top_processes(5)
+            by_cpu, by_mem = top_processes(cfg.show_top_n_proc)
             for alert in alerts:
                 try:
                     notifier.send(cfg, alert, by_cpu, by_mem, dry_run=dry_run)
@@ -131,13 +134,13 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
 
 
 def _sleep_interruptible(seconds: float, stop: dict) -> None:
-    # Wake up every second so SIGTERM is responsive.
+    # Wake up every SIGTERM_CHECK_INTERVAL so SIGTERM is responsive.
     end = time.monotonic() + seconds
     while not stop["now"]:
         left = end - time.monotonic()
         if left <= 0:
             return
-        time.sleep(min(1.0, left))
+        time.sleep(min(SIGTERM_CHECK_INTERVAL, left))
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -9,6 +9,8 @@ from .models import ProcInfo, Snapshot
 
 log = logging.getLogger(__name__)
 
+CPU_SAMPLE_INTERVAL = 1.0
+
 
 def collect(mounts: list[str]) -> Snapshot:
     load_1, load_5, load_15 = psutil.getloadavg()
@@ -48,7 +50,7 @@ def top_processes(n: int = 5) -> tuple[list[ProcInfo], list[ProcInfo]]:
             continue
 
     # Short sample window so top-CPU rankings are meaningful.
-    psutil.cpu_percent(interval=1.0)
+    psutil.cpu_percent(interval=CPU_SAMPLE_INTERVAL)
 
     for p in psutil.process_iter(["pid", "name", "cmdline", "memory_info"]):
         try:

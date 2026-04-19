@@ -64,6 +64,7 @@ class Config:
     interval_seconds: int
     sustained_checks: int
     cooldown_minutes: int
+    show_top_n_proc: int
     thresholds: dict[str, dict[str, float]]
     mounts: list[str]
     telegram_token: str
