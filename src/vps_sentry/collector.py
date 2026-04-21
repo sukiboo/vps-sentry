@@ -60,7 +60,8 @@ def top_processes(n: int = 5) -> tuple[list[ProcInfo], list[ProcInfo]]:
                 ProcInfo(
                     pid=info["pid"],
                     name=info.get("name") or "",
-                    cmdline=" ".join(info.get("cmdline") or []) or (info.get("name") or ""),
+                    cmdline=" ".join(s for s in (info.get("cmdline") or []) if s)
+                    or (info.get("name") or ""),
                     cpu_pct=p.cpu_percent(interval=None),
                     rss_bytes=mem.rss if mem else 0,
                 )
