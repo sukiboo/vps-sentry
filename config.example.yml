@@ -25,3 +25,11 @@ thresholds:
   iowait:        { warn: 20,  critical: 40 }
 
 mounts: ["/"]
+
+# Weekly summary of avg/max/p95 resource usage over the past 7 days.
+# Fires on the configured day/hour/minute (UTC) and posts to the same Telegram channel.
+weekly_report:
+  enabled: true
+  day: sunday        # sun/mon/.../sat (case-insensitive) or 0-6 (Mon=0..Sun=6)
+  hour: 0
+  minute: 0

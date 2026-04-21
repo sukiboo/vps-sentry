@@ -7,9 +7,10 @@ import signal
 import sys
 import time
 from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import notifier, ticklog
+from . import notifier, summary, ticklog
 from .collector import collect, top_processes
 from .config import load_config
 from .evaluator import evaluate
@@ -59,7 +60,19 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
     cfg = load_config(cfg_path)
     state = AlertState()
     state.configure_history(cfg.sustained_checks)
-    tick_log = ticklog.setup(Path.cwd() / "logs")
+    log_dir = Path.cwd() / "logs"
+    state_dir = Path.cwd() / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_path = state_dir / "last_weekly.txt"
+    tick_log = ticklog.setup(log_dir)
+
+    last_sent = summary.read_last_sent(state_path)
+    next_weekly_due = summary.schedule_next_after(
+        last_sent or datetime.now(timezone.utc),
+        cfg.weekly_report_day,
+        cfg.weekly_report_hour,
+        cfg.weekly_report_minute,
+    )
 
     stop = {"now": False}
 
@@ -116,6 +129,14 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
 
         ticklog.log_tick(tick_log, snap, len(alerts))
 
+        if cfg.weekly_report_enabled:
+            try:
+                next_weekly_due = _maybe_send_weekly(
+                    cfg, log_dir, state_path, next_weekly_due, dry_run
+                )
+            except Exception:
+                log.exception("weekly summary tick failed")
+
         if alerts:
             by_cpu, by_mem = top_processes(cfg.show_top_n_proc)
             for alert in alerts:
@@ -131,6 +152,42 @@ def run_loop(cfg_path: str, dry_run: bool) -> int:
     log.info("vps-sentry exiting")
     notifier.send_text(cfg, f"🔴 vps-sentry stopping on `{cfg.host}`", dry_run=dry_run)
     return 0
+
+
+def _maybe_send_weekly(
+    cfg, log_dir: Path, state_path: Path, next_due: datetime, dry_run: bool
+) -> datetime:
+    now = datetime.now(timezone.utc)
+    if now < next_due:
+        return next_due
+    # Walk forward to the most recent scheduled boundary still <= now, so a
+    # daemon that was down for multiple weeks fires a single (most recent) report.
+    last_crossed = next_due
+    while True:
+        candidate = summary.schedule_next_after(
+            last_crossed,
+            cfg.weekly_report_day,
+            cfg.weekly_report_hour,
+            cfg.weekly_report_minute,
+        )
+        if candidate > now:
+            break
+        last_crossed = candidate
+    end = last_crossed
+    start = end - timedelta(days=7)
+    msg = summary.build_summary(log_dir, start, end, cfg.host)
+    if msg:
+        notifier.send_text(cfg, msg, dry_run=dry_run)
+        log.info("weekly summary sent for %s → %s", start.date(), end.date())
+    else:
+        log.warning("weekly summary: no samples in window %s → %s", start, end)
+    summary.write_last_sent(state_path, end)
+    return summary.schedule_next_after(
+        end,
+        cfg.weekly_report_day,
+        cfg.weekly_report_hour,
+        cfg.weekly_report_minute,
+    )
 
 
 def _sleep_interruptible(seconds: float, stop: dict) -> None:

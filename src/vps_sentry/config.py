@@ -11,6 +11,27 @@ from .models import METRIC_DIRECTION, Config
 
 REQUIRED_METRICS = set(METRIC_DIRECTION.keys())
 
+_WEEKDAY_NAMES: dict[str, int] = {
+    "mon": 0,
+    "monday": 0,
+    "tue": 1,
+    "tues": 1,
+    "tuesday": 1,
+    "wed": 2,
+    "weds": 2,
+    "wednesday": 2,
+    "thu": 3,
+    "thur": 3,
+    "thurs": 3,
+    "thursday": 3,
+    "fri": 4,
+    "friday": 4,
+    "sat": 5,
+    "saturday": 5,
+    "sun": 6,
+    "sunday": 6,
+}
+
 
 def load_config(config_path: str | Path, env_path: str | Path | None = None) -> Config:
     config_path = Path(config_path)
@@ -38,6 +59,8 @@ def load_config(config_path: str | Path, env_path: str | Path | None = None) -> 
     if not isinstance(mounts, list) or not all(isinstance(m, str) for m in mounts):
         raise ValueError("`mounts` must be a list of strings")
 
+    weekly = _parse_weekly_report(raw.get("weekly_report") or {})
+
     return Config(
         interval_seconds=int(raw.get("interval_seconds", 60)),
         sustained_checks=int(raw.get("sustained_checks", 3)),
@@ -48,8 +71,40 @@ def load_config(config_path: str | Path, env_path: str | Path | None = None) -> 
         telegram_token=token,
         telegram_chat_id=chat_id,
         host=str(raw.get("host") or socket.gethostname()),
+        weekly_report_enabled=weekly["enabled"],
+        weekly_report_day=weekly["day"],
+        weekly_report_hour=weekly["hour"],
+        weekly_report_minute=weekly["minute"],
         config_path=str(config_path),
     )
+
+
+def _parse_weekly_report(wr: dict) -> dict:
+    if not isinstance(wr, dict):
+        raise ValueError("`weekly_report` must be a mapping")
+    enabled = bool(wr.get("enabled", True))
+    day = _parse_weekday(wr.get("day", "sunday"))
+    hour = int(wr.get("hour", 0))
+    minute = int(wr.get("minute", 0))
+    if not 0 <= hour < 24:
+        raise ValueError(f"weekly_report.hour must be 0-23, got {hour}")
+    if not 0 <= minute < 60:
+        raise ValueError(f"weekly_report.minute must be 0-59, got {minute}")
+    return {"enabled": enabled, "day": day, "hour": hour, "minute": minute}
+
+
+def _parse_weekday(value) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"weekly_report.day must be 0-6 or a weekday name, got {value!r}")
+    if isinstance(value, int):
+        if 0 <= value <= 6:
+            return value
+        raise ValueError(f"weekly_report.day must be 0-6, got {value}")
+    if isinstance(value, str):
+        key = value.strip().lower()
+        if key in _WEEKDAY_NAMES:
+            return _WEEKDAY_NAMES[key]
+    raise ValueError(f"weekly_report.day must be 0-6 or a weekday name, got {value!r}")
 
 
 def _validate_thresholds(thresholds: dict) -> None:

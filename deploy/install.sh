@@ -21,7 +21,7 @@ mkdir -p "$DEST"
 # Sync source, excluding venv/.git; keep .env and config.yml if they already exist on the host.
 rsync -a --delete \
     --exclude='.venv' --exclude='.git' --exclude='__pycache__' \
-    --exclude='.env' --exclude='config.yml' \
+    --exclude='.env' --exclude='config.yml' --exclude='state' \
     "$SRC/" "$DEST/"
 
 # Seed config/.env only if missing on the host. Missing $SRC/.env fails loudly
@@ -52,7 +52,7 @@ fi
 "$DEST/.venv/bin/pip" install --quiet --upgrade pip
 "$DEST/.venv/bin/pip" install --quiet -r "$DEST/requirements.txt"
 
-mkdir -p "$DEST/logs"
+mkdir -p "$DEST/logs" "$DEST/state"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$DEST"
 chmod 600 "$DEST/.env"
 
