@@ -24,10 +24,18 @@ rsync -a --delete \
     --exclude='.env' --exclude='config.yml' --exclude='state' \
     "$SRC/" "$DEST/"
 
-# Seed config/.env only if missing on the host. Missing $SRC/.env fails loudly
-# here rather than silently producing a broken install.
-[[ -f "$DEST/.env" ]]       || cp "$SRC/.env"             "$DEST/.env"
-[[ -f "$DEST/config.yml" ]] || cp "$SRC/config.example.yml" "$DEST/config.yml"
+# Install .env and config.yml. A file shipped in $SRC overwrites the host's.
+if [[ -f "$SRC/.env" ]]; then
+    cp "$SRC/.env" "$DEST/.env"
+elif [[ ! -f "$DEST/.env" ]]; then
+    echo "no .env in $SRC and none on host at $DEST/.env" >&2
+    exit 1
+fi
+if [[ ! -f "$SRC/config.yml" ]]; then
+    echo "no config.yml in $SRC" >&2
+    exit 1
+fi
+cp "$SRC/config.yml" "$DEST/config.yml"
 
 if [[ ! -x "$DEST/.venv/bin/pip" ]]; then
     # Debian/Ubuntu ships `python3 -m venv` in a separate, version-specific

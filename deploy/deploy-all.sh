@@ -21,7 +21,7 @@ rsync -a \
     --exclude='.mypy_cache' --exclude='.ruff_cache' --exclude='.pytest_cache' \
     --exclude='.vscode' --exclude='.idea' --exclude='.claude' \
     --exclude='.pre-commit-config.yaml' --exclude='*.egg-info' \
-    --exclude='logs' --exclude='state' --exclude='.env' --exclude='config.yml' \
+    --exclude='logs' --exclude='state' --exclude='.env' \
     "$REPO_ROOT/" "$STAGE_LOCAL/"
 
 # Ship a cleaned .env — drop VPS_HOSTS so the host list doesn't leak to each VPS.
