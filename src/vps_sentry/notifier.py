@@ -115,11 +115,11 @@ def _fmt_value(metric: str, value: float) -> str:
 
 
 def _fmt_rss(rss: int) -> str:
-    gb = rss / (1024**3)
-    if gb >= 1:
-        return f"{gb:4.1f} GB"
     mb = rss / (1024**2)
-    return f"{mb:4.0f} MB"
+    if mb >= 1000:
+        return f"{mb / 1024:3.1f}gb"
+    else:
+        return f"{mb:3.0f}mb"
 
 
 def _short_cmd(p: ProcInfo, limit: int = CMDLINE_LIMIT) -> str:
