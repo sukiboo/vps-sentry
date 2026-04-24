@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import logging
 import time
+from typing import NamedTuple
 
 import requests
 
@@ -19,7 +20,17 @@ BACKOFF_MULTIPLIER = 2.0
 
 CMDLINE_LIMIT = 40
 
-TIER_PREFIX = {"warn": "⚠️", "critical": "🚨", "recover": "✅"}
+
+class TierStyle(NamedTuple):
+    prefix: str
+    silent: bool
+
+
+TIERS: dict[str, TierStyle] = {
+    "warn": TierStyle(prefix="⚠️", silent=True),
+    "critical": TierStyle(prefix="🚨", silent=False),
+    "recover": TierStyle(prefix="✅", silent=False),
+}
 
 
 def send(
@@ -30,26 +41,28 @@ def send(
     dry_run: bool = False,
 ) -> None:
     text = format_alert(cfg, alert, top_cpu, top_mem)
+    silent = TIERS[alert.tier].silent
     if dry_run:
-        print(f"[dry-run] would send:\n{text}\n")
+        print(f"[dry-run] would send{' (silent)' if silent else ''}:\n{text}\n")
         return
-    _post(cfg, text)
+    _post(cfg, text, silent=silent)
 
 
-def send_text(cfg: Config, text: str, dry_run: bool = False) -> None:
+def send_text(cfg: Config, text: str, dry_run: bool = False, silent: bool = False) -> None:
     if dry_run:
-        print(f"[dry-run] would send:\n{text}\n")
+        print(f"[dry-run] would send{' (silent)' if silent else ''}:\n{text}\n")
         return
-    _post(cfg, text)
+    _post(cfg, text, silent=silent)
 
 
-def _post(cfg: Config, text: str) -> None:
+def _post(cfg: Config, text: str, silent: bool = False) -> None:
     url = TELEGRAM_URL.format(token=cfg.telegram_token)
     payload = {
         "chat_id": cfg.telegram_chat_id,
         "text": f"<code>{html.escape(text)}</code>",
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
+        "disable_notification": silent,
     }
     backoff = INITIAL_BACKOFF_SECONDS
     for attempt in range(1, RETRY_ATTEMPTS + 1):
@@ -77,7 +90,7 @@ def format_alert(
         label = f"{label} ({alert.mount})"
 
     ts = alert.snapshot.ts.strftime("%Y-%m-%d %H:%M UTC") if alert.snapshot else ""
-    prefix = TIER_PREFIX[alert.tier]
+    prefix = TIERS[alert.tier].prefix
     value = _fmt_value(alert.metric, alert.value)
     header = f"{prefix}  {ts} -- {label} {value} on `{cfg.host}`"
 
