@@ -18,7 +18,7 @@ REQUEST_TIMEOUT_SECONDS = 10
 INITIAL_BACKOFF_SECONDS = 1.0
 BACKOFF_MULTIPLIER = 2.0
 
-CMDLINE_LIMIT = 40
+CMDLINE_LIMIT = 24
 
 
 class TierStyle(NamedTuple):
@@ -89,10 +89,9 @@ def format_alert(
     if alert.mount:
         label = f"{label} ({alert.mount})"
 
-    ts = alert.snapshot.ts.strftime("%Y-%m-%d %H:%M UTC") if alert.snapshot else ""
     prefix = TIERS[alert.tier].prefix
     value = _fmt_value(alert.metric, alert.value)
-    header = f"{prefix}  {ts} -- {label} {value} on `{cfg.host}`"
+    header = f"{prefix}  {value} {label} on `{cfg.host}`"
 
     if alert.tier == "recover":
         return header
