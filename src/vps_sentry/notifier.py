@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import requests
 
-from .models import Alert, Config, ProcInfo
+from .models import Alert, Config, ProcInfo, Snapshot
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +30,16 @@ TIERS: dict[str, TierStyle] = {
     "warn": TierStyle(prefix="⚠️", silent=True),
     "critical": TierStyle(prefix="🚨", silent=False),
     "recover": TierStyle(prefix="✅", silent=False),
+}
+
+# Which top-process list is relevant per alert metric. Metrics not listed
+# (e.g. disk_used) get no process breakdown — psutil top-N by CPU/RAM
+# doesn't explain disk consumption.
+METRIC_TOP_LIST: dict[str, str] = {
+    "memory_used": "mem",
+    "swap_used": "mem",
+    "load_per_core": "cpu",
+    "iowait": "cpu",
 }
 
 
@@ -97,29 +107,34 @@ def format_alert(
         return header
 
     body = [header, ""]
-    if top_mem:
+    kind = METRIC_TOP_LIST.get(alert.metric)
+    if kind == "mem" and top_mem:
         body.append("Top by RAM:")
-        body.extend(f"  {_fmt_rss(p.rss_bytes)}  {_short_cmd(p)}" for p in top_mem)
-        body.append("")
-    if top_cpu:
-        cpu_count = max(1, alert.snapshot.cpu_count) if alert.snapshot else 1
+        body.extend(f"  {_fmt_ram(p.rss_bytes)} {_short_cmd(p)}" for p in top_mem)
+    elif kind == "cpu" and top_cpu:
         body.append("Top by CPU:")
-        body.extend(f"  {p.cpu_pct / cpu_count:4.0f}%  {_short_cmd(p)}" for p in top_cpu)
+        body.extend(f"  {_fmt_cpu(p.cpu_pct, alert.snapshot)} {_short_cmd(p)}" for p in top_cpu)
     return "\n".join(body).rstrip()
 
 
 def _fmt_value(metric: str, value: float) -> str:
     if metric == "load_per_core":
         return f"{value:.2f}"
-    return f"{value:.0f}%"
+    else:
+        return f"{value:.0f}%"
 
 
-def _fmt_rss(rss: int) -> str:
+def _fmt_ram(rss: int) -> str:
     mb = rss / (1024**2)
     if mb >= 1000:
         return f"{mb / 1024:3.1f}gb"
     else:
         return f"{mb:3.0f}mb"
+
+
+def _fmt_cpu(cpu_pct: float, snapshot: Snapshot | None) -> str:
+    cpu_count = max(1, snapshot.cpu_count) if snapshot else 1
+    return f"{cpu_pct / cpu_count:4.2f}%"
 
 
 def _short_cmd(p: ProcInfo, limit: int = CMDLINE_LIMIT) -> str:
