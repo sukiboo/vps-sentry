@@ -11,27 +11,6 @@ from .models import METRIC_DIRECTION, Config
 
 REQUIRED_METRICS = set(METRIC_DIRECTION.keys())
 
-_WEEKDAY_NAMES: dict[str, int] = {
-    "mon": 0,
-    "monday": 0,
-    "tue": 1,
-    "tues": 1,
-    "tuesday": 1,
-    "wed": 2,
-    "weds": 2,
-    "wednesday": 2,
-    "thu": 3,
-    "thur": 3,
-    "thurs": 3,
-    "thursday": 3,
-    "fri": 4,
-    "friday": 4,
-    "sat": 5,
-    "saturday": 5,
-    "sun": 6,
-    "sunday": 6,
-}
-
 
 def load_config(config_path: str | Path, env_path: str | Path | None = None) -> Config:
     config_path = Path(config_path)
@@ -52,21 +31,35 @@ def load_config(config_path: str | Path, env_path: str | Path | None = None) -> 
     with open(config_path) as f:
         raw = yaml.safe_load(f) or {}
 
-    thresholds = raw.get("thresholds") or {}
-    _validate_thresholds(thresholds)
+    raw = _apply_host_override(raw)
 
-    mounts = raw.get("mounts") or ["/"]
+    required = [
+        "interval_seconds",
+        "sustained_checks",
+        "cooldown_minutes",
+        "show_top_n_proc",
+        "thresholds",
+        "mounts",
+        "weekly_report",
+    ]
+    missing = [k for k in required if k not in raw]
+    if missing:
+        raise ValueError(f"config.yml missing required fields: {missing}")
+
+    _validate_thresholds(raw["thresholds"])
+
+    mounts = raw["mounts"]
     if not isinstance(mounts, list) or not all(isinstance(m, str) for m in mounts):
         raise ValueError("`mounts` must be a list of strings")
 
-    weekly = _parse_weekly_report(raw.get("weekly_report") or {})
+    weekly = _parse_weekly_report(raw["weekly_report"])
 
     return Config(
-        interval_seconds=int(raw.get("interval_seconds", 60)),
-        sustained_checks=int(raw.get("sustained_checks", 3)),
-        cooldown_minutes=int(raw.get("cooldown_minutes", 30)),
-        show_top_n_proc=int(raw.get("show_top_n_proc", 5)),
-        thresholds=thresholds,
+        interval_seconds=int(raw["interval_seconds"]),
+        sustained_checks=int(raw["sustained_checks"]),
+        cooldown_minutes=int(raw["cooldown_minutes"]),
+        show_top_n_proc=int(raw["show_top_n_proc"]),
+        thresholds=raw["thresholds"],
         mounts=mounts,
         telegram_token=token,
         telegram_chat_id=chat_id,
@@ -79,32 +72,53 @@ def load_config(config_path: str | Path, env_path: str | Path | None = None) -> 
     )
 
 
+def _apply_host_override(raw: dict) -> dict:
+    hosts_block = raw.pop("hosts", None)
+    if hosts_block in (None, {}):
+        return raw
+    if not isinstance(hosts_block, dict):
+        raise ValueError("`hosts` must be a mapping of hostname -> overrides")
+    hostname = socket.gethostname()
+    if hostname not in hosts_block:
+        raise ValueError(
+            f"hostname {hostname!r} (from socket.gethostname()) is not listed in the "
+            f"`hosts` section of config.yml; defined: {sorted(hosts_block.keys())}"
+        )
+    override = hosts_block[hostname] or {}
+    if not isinstance(override, dict):
+        raise ValueError(f"`hosts.{hostname}` must be a mapping")
+    return _deep_merge(raw, override)
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    out = dict(base)
+    for k, v in override.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
 def _parse_weekly_report(wr: dict) -> dict:
     if not isinstance(wr, dict):
         raise ValueError("`weekly_report` must be a mapping")
-    enabled = bool(wr.get("enabled", True))
-    day = _parse_weekday(wr.get("day", "sunday"))
-    hour = int(wr.get("hour", 0))
-    minute = int(wr.get("minute", 0))
+    missing = [k for k in ("enabled", "day", "hour", "minute") if k not in wr]
+    if missing:
+        raise ValueError(f"weekly_report missing required fields: {missing}")
+    enabled = wr["enabled"]
+    if not isinstance(enabled, bool):
+        raise ValueError(f"weekly_report.enabled must be a bool, got {enabled!r}")
+    day = wr["day"]
+    if isinstance(day, bool) or not isinstance(day, int) or not 0 <= day <= 6:
+        raise ValueError(f"weekly_report.day must be 0-6 (Mon=0..Sun=6), got {day!r}")
+    hour = int(wr["hour"])
+    minute = int(wr["minute"])
     if not 0 <= hour < 24:
         raise ValueError(f"weekly_report.hour must be 0-23, got {hour}")
     if not 0 <= minute < 60:
         raise ValueError(f"weekly_report.minute must be 0-59, got {minute}")
     return {"enabled": enabled, "day": day, "hour": hour, "minute": minute}
-
-
-def _parse_weekday(value) -> int:
-    if isinstance(value, bool):
-        raise ValueError(f"weekly_report.day must be 0-6 or a weekday name, got {value!r}")
-    if isinstance(value, int):
-        if 0 <= value <= 6:
-            return value
-        raise ValueError(f"weekly_report.day must be 0-6, got {value}")
-    if isinstance(value, str):
-        key = value.strip().lower()
-        if key in _WEEKDAY_NAMES:
-            return _WEEKDAY_NAMES[key]
-    raise ValueError(f"weekly_report.day must be 0-6 or a weekday name, got {value!r}")
 
 
 def _validate_thresholds(thresholds: dict) -> None:

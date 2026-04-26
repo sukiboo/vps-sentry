@@ -75,16 +75,24 @@ tail -f logs/vps-sentry.log | jq .
 sudo ./deploy/install.sh
 ```
 
-**Multiple VPSes** — list hosts in `.env` and run the wrapper locally:
+**Multiple VPSes** — list hosts under `hosts:` in `config.yml` (keyed by each box's `socket.gethostname()`, with optional per-host overrides in the value):
+
+```yaml
+# in config.yml
+hosts:
+  vps-prod-1: {}
+  vps-bot-2:
+    thresholds:
+      memory_used: { warn: 90, critical: 95 }
+```
+
+Then run the wrapper locally:
 
 ```bash
-# in .env
-VPS_HOSTS="root@vps1.example.com ubuntu@vps2 vps3"
-
 ./deploy/deploy-all.sh
 ```
 
-The wrapper rsyncs the repo to each host, runs `install.sh` over SSH, and prints a per-host success/failure summary. Requires SSH access + sudo on every target (passwordless sudo or root logins are smoothest; otherwise you'll be prompted for the sudo password per host). Configure `User`/`Port`/`IdentityFile` per host in `~/.ssh/config`. `VPS_HOSTS` is stripped from the `.env` before pushing, so the host list never lands on a VPS.
+The wrapper reads the `hosts:` keys from `config.yml`, rsyncs the repo to each host, runs `install.sh` over SSH, and prints a per-host success/failure summary. Requires SSH access + sudo on every target (passwordless sudo or root logins are smoothest; otherwise you'll be prompted for the sudo password per host). Each `hosts:` key doubles as the SSH target, so configure matching `~/.ssh/config` entries (multiple names per `Host` line are fine — e.g. `Host sail lightsail`). The daemon validates on startup that its own `socket.gethostname()` is listed in `hosts:`, so a missed entry fails loudly rather than silently using defaults.
 
 Either path produces the same idempotent install: a `vps-sentry` system user, rsync to `/opt/vps-sentry`, venv built, systemd unit enabled.
 

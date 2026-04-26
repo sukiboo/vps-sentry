@@ -30,6 +30,20 @@ mounts: ["/"]
 # Fires on the configured day/hour/minute (UTC) and posts to the same Telegram channel.
 weekly_report:
   enabled: true
-  day: sunday        # sun/mon/.../sat (case-insensitive) or 0-6 (Mon=0..Sun=6)
+  day: 0   # 0-6 (Mon=0..Sun=6)
   hour: 0
   minute: 0
+
+# Per-host overrides. Keyed by socket.gethostname() on each VPS.
+# When this block is present, the daemon REQUIRES its own hostname to appear
+# below; startup fails loudly otherwise. Override values are deep-merged onto
+# the top-level defaults above (lists are replaced, dicts are merged key-by-key).
+# Omit the block entirely to use the defaults on every host.
+hosts:
+  vps-prod-1:
+    mounts: ["/", "/data"]
+    thresholds:
+      memory_used: { warn: 90, critical: 95 }   # this box runs hot
+  vps-bot-2:
+    thresholds:
+      load_per_core: { warn: 0.5, critical: 1.0 }   # smaller box

@@ -70,8 +70,8 @@ class Config:
     telegram_token: str
     telegram_chat_id: str
     host: str
-    weekly_report_enabled: bool = True
-    weekly_report_day: int = 6  # Python weekday: Mon=0..Sun=6
-    weekly_report_hour: int = 0
-    weekly_report_minute: int = 0
+    weekly_report_enabled: bool
+    weekly_report_day: int  # Python weekday: Mon=0..Sun=6
+    weekly_report_hour: int
+    weekly_report_minute: int
     config_path: str = ""

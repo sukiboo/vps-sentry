@@ -1,16 +1,31 @@
 #!/usr/bin/env bash
-# Deploy vps-sentry to every host listed in VPS_HOSTS (from .env).
+# Deploy vps-sentry to every host listed under `hosts:` in config.yml.
+# Each key under `hosts:` is used as both the SSH target and the daemon's
+# match key (socket.gethostname()) — set up ~/.ssh/config aliases accordingly.
 # Requires: SSH access + sudo on each host (passwordless or interactive —
 # you'll be prompted per host otherwise), rsync on both ends.
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 ENV_FILE="$REPO_ROOT/.env"
+CONFIG_FILE="$REPO_ROOT/config.yml"
 STAGE_REMOTE="/tmp/vps-sentry-stage"
 
 [[ -f "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 1; }
-set -a; source "$ENV_FILE"; set +a
-: "${VPS_HOSTS:?set VPS_HOSTS in .env (space-separated SSH targets)}"
+[[ -f "$CONFIG_FILE" ]] || { echo "missing $CONFIG_FILE" >&2; exit 1; }
+
+# Read the host list (keys under `hosts:`) from config.yml.
+PY="$REPO_ROOT/.venv/bin/python3"
+[[ -x "$PY" ]] || PY=python3
+mapfile -t HOSTS < <("$PY" - "$CONFIG_FILE" <<'PYEOF'
+import sys, yaml
+with open(sys.argv[1]) as f:
+    cfg = yaml.safe_load(f) or {}
+for h in (cfg.get("hosts") or {}):
+    print(h)
+PYEOF
+)
+(( ${#HOSTS[@]} > 0 )) || { echo "no \`hosts:\` entries in $CONFIG_FILE" >&2; exit 1; }
 
 # Build a local staging dir once; same payload goes to every host.
 STAGE_LOCAL=$(mktemp -d)
@@ -24,11 +39,10 @@ rsync -a \
     --exclude='logs' --exclude='state' --exclude='.env' \
     "$REPO_ROOT/" "$STAGE_LOCAL/"
 
-# Ship a cleaned .env — drop VPS_HOSTS so the host list doesn't leak to each VPS.
-grep -v '^VPS_HOSTS=' "$ENV_FILE" > "$STAGE_LOCAL/.env"
+cp "$ENV_FILE" "$STAGE_LOCAL/.env"
 
 declare -a ok=() failed=()
-for host in $VPS_HOSTS; do
+for host in "${HOSTS[@]}"; do
     printf '==> deploying vps-sentry on `%s`...\n' "$host"
     if rsync -a --delete -e ssh "$STAGE_LOCAL/" "$host:$STAGE_REMOTE/" \
         && ssh -t "$host" "sudo bash $STAGE_REMOTE/deploy/install.sh $STAGE_REMOTE" \
