@@ -37,9 +37,15 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp config.example.yml config.yml
 
+# either delete the example `hosts:` block from config.yml, or add this machine:
+#   hosts:
+#     <output of `hostname`>: {}
+
 # should print one snapshot and exit, no Telegram traffic
 PYTHONPATH=src .venv/bin/python -m vps_sentry --once
 ```
+
+The daemon validates `socket.gethostname()` against the `hosts:` block on startup and refuses to run if it isn't listed (strict-when-present, see "Multiple VPSes" below). Removing the block is fine for local dev — it just means "same config everywhere."
 
 If that works, force a test alert by creating a breaching config (e.g. `memory_used: { warn: 1, critical: 99 }`, `sustained_checks: 2`, `interval_seconds: 2`) and running `--dry-run` — you'll see the alert text on stdout. Drop `--dry-run` to send it to Telegram for real.
 

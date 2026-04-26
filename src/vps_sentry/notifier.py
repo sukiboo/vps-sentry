@@ -18,7 +18,7 @@ REQUEST_TIMEOUT_SECONDS = 10
 INITIAL_BACKOFF_SECONDS = 1.0
 BACKOFF_MULTIPLIER = 2.0
 
-CMDLINE_LIMIT = 24
+CMDLINE_LIMIT = 26
 
 
 class TierStyle(NamedTuple):
@@ -110,10 +110,10 @@ def format_alert(
     kind = METRIC_TOP_LIST.get(alert.metric)
     if kind == "mem" and top_mem:
         body.append("Top by RAM:")
-        body.extend(f"  {_fmt_ram(p.rss_bytes)} {_short_cmd(p)}" for p in top_mem)
+        body.extend(f"{_fmt_ram(p.rss_bytes)} {_short_cmd(p)}" for p in top_mem)
     elif kind == "cpu" and top_cpu:
         body.append("Top by CPU:")
-        body.extend(f"  {_fmt_cpu(p.cpu_pct, alert.snapshot)} {_short_cmd(p)}" for p in top_cpu)
+        body.extend(f"{_fmt_cpu(p.cpu_pct, alert.snapshot)} {_short_cmd(p)}" for p in top_cpu)
     return "\n".join(body).rstrip()
 
 
@@ -127,14 +127,14 @@ def _fmt_value(metric: str, value: float) -> str:
 def _fmt_ram(rss: int) -> str:
     mb = rss / (1024**2)
     if mb >= 1000:
-        return f"{mb / 1024:3.1f}gb"
+        return f"{mb / 1024:>5.1f}gb"
     else:
-        return f"{mb:3.0f}mb"
+        return f"{mb:>5.0f}mb"
 
 
 def _fmt_cpu(cpu_pct: float, snapshot: Snapshot | None) -> str:
     cpu_count = max(1, snapshot.cpu_count) if snapshot else 1
-    return f"{cpu_pct / cpu_count:4.2f}%"
+    return f"{cpu_pct / cpu_count:>6.2f}%"
 
 
 def _short_cmd(p: ProcInfo, limit: int = CMDLINE_LIMIT) -> str:
