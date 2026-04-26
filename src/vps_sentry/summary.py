@@ -20,11 +20,11 @@ SCALAR_METRICS: tuple[str, ...] = (
 )
 
 SCALAR_ROWS: tuple[tuple[str, str], ...] = (
-    ("CPU", "cpu_used"),
-    ("Load", "load_per_core"),
-    ("Memory", "mem_used"),
-    ("Swap", "swap_used"),
-    ("IOwait", "iowait"),
+    ("load", "load_per_core"),
+    ("cpu", "cpu_used"),
+    ("memory", "mem_used"),
+    ("swap", "swap_used"),
+    ("iowait", "iowait"),
 )
 
 
@@ -66,7 +66,6 @@ def write_last_sent(path: Path, dt: datetime) -> None:
 def build_summary(log_dir: Path, start: datetime, end: datetime, host: str) -> str | None:
     scalars: dict[str, list[float]] = {m: [] for m in SCALAR_METRICS}
     disks: dict[str, list[float]] = {}
-    alert_total = 0
 
     for fp in _iter_tick_files(log_dir, start, end):
         try:
@@ -90,47 +89,35 @@ def build_summary(log_dir: Path, start: datetime, end: datetime, host: str) -> s
                     for mount, v in (rec.get("disk_used") or {}).items():
                         if isinstance(v, (int, float)):
                             disks.setdefault(mount, []).append(float(v))
-                    a = rec.get("alerts")
-                    if isinstance(a, int):
-                        alert_total += a
         except OSError:
             log.warning("could not read %s", fp)
 
-    total_samples = len(scalars["cpu_used"])
-    if total_samples == 0 and not disks:
+    if not scalars["cpu_used"] and not disks:
         return None
 
-    window = f"{start.strftime('%Y-%m-%d %H:%M')} → {end.strftime('%Y-%m-%d %H:%M')} UTC"
     lines = [
-        f"📊 Weekly summary on {host}",
-        window,
-        f"{total_samples} samples, {alert_total} alerts",
+        f"🐾 weekly summary for `{host}`",
         "",
-        f"{'':<8} {'avg':>6} {'max':>6} {'p95':>6}",
+        f"{'':<8}{'p50':>7}{'p95':>7}{'p99':>7}",
     ]
     for label, key in SCALAR_ROWS:
         samples = scalars[key]
         if not samples:
             continue
         samples.sort()
-        avg = sum(samples) / len(samples)
-        mx = samples[-1]
+        p50 = _percentile(samples, 0.50)
         p95 = _percentile(samples, 0.95)
-        lines.append(f"{label:<8} {_fmt(key, avg):>6} {_fmt(key, mx):>6} {_fmt(key, p95):>6}")
+        p99 = _percentile(samples, 0.99)
+        lines.append(f"{label:<8}{_fmt(key, p50):>7}{_fmt(key, p95):>7}{_fmt(key, p99):>7}")
 
     if disks:
-        mount_w = max(len(m) for m in disks)
-        lines.append("")
-        lines.append("Disks:")
-        lines.append(f"  {'':<{mount_w}} {'avg':>6} {'max':>6} {'p95':>6}")
+        lines.append("mounts")
         for mount in sorted(disks):
             samples = sorted(disks[mount])
-            avg = sum(samples) / len(samples)
-            mx = samples[-1]
+            p50 = _percentile(samples, 0.50)
             p95 = _percentile(samples, 0.95)
-            lines.append(
-                f"  {mount:<{mount_w}} {_fmt_pct(avg):>6} {_fmt_pct(mx):>6} {_fmt_pct(p95):>6}"
-            )
+            p99 = _percentile(samples, 0.99)
+            lines.append(f"  {mount:<8}{_fmt_pct(p50):>7}{_fmt_pct(p95):>7}{_fmt_pct(p99):>7}")
 
     return "\n".join(lines)
 
