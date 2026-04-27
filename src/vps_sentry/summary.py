@@ -117,7 +117,7 @@ def build_summary(log_dir: Path, start: datetime, end: datetime, host: str) -> s
             p50 = _percentile(samples, 0.50)
             p95 = _percentile(samples, 0.95)
             p99 = _percentile(samples, 0.99)
-            lines.append(f"  {mount:<8}{_fmt_pct(p50):>7}{_fmt_pct(p95):>7}{_fmt_pct(p99):>7}")
+            lines.append(f"  {mount:<6}{_fmt_pct(p50):>7}{_fmt_pct(p95):>7}{_fmt_pct(p99):>7}")
 
     return "\n".join(lines)
 
