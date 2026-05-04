@@ -9,7 +9,36 @@ Every `interval_seconds` it samples via `psutil` and evaluates thresholds for:
 - **load_per_core** — 1-min load average / CPU count
 - **memory_used**, **swap_used**, **disk_used** (per mount), **iowait** — percentages
 
+```
+⚠️  82% memory used on `vultr`
+
+Top by RAM:
+  216mb openclaw-gateway
+  198mb openclaw-gateway
+   26mb /sbin/multipathd -d -s
+```
+
 Alerts are suppressed until `sustained_checks` consecutive samples are over threshold, and each (metric, tier) has a `cooldown_minutes` to prevent spam. Warn can escalate to critical independently. One-shot ✅ recovery message when a metric drops back under.
+
+```
+✅  43% memory used on `vultr`
+```
+
+If `weekly_report` is enabled, the metrics summary are reported:
+
+```
+🐾 weekly summary for `vultr`
+
+            p50    p95    p99
+load       0.00   0.13   0.33
+cpu        0.4%   7.4%  33.6%
+memory    46.7%  50.0%  53.2%
+swap       0.1%   0.8%   0.8%
+iowait     0.0%   0.0%   0.1%
+mounts
+  /       25.7%  26.9%  26.9%
+```
+
 
 ## Telegram setup
 
